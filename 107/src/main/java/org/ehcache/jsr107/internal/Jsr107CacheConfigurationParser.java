@@ -20,42 +20,23 @@ package org.ehcache.jsr107.internal;
 import org.ehcache.jsr107.config.ConfigurationElementState;
 import org.ehcache.jsr107.config.Jsr107CacheConfiguration;
 import org.ehcache.jsr107.Jsr107Service;
-import org.ehcache.spi.service.ServiceConfiguration;
 import org.ehcache.xml.CacheServiceConfigurationParser;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
 import org.osgi.service.component.annotations.Component;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
-
-import javax.xml.transform.Source;
-import javax.xml.transform.stream.StreamSource;
 
 /**
  * Jsr107CacheConfigurationParser
  */
 @Component
-public class Jsr107CacheConfigurationParser implements CacheServiceConfigurationParser<Jsr107Service> {
+public class Jsr107CacheConfigurationParser extends Jsr107Parser<Jsr107CacheConfiguration> implements CacheServiceConfigurationParser<Jsr107Service, Jsr107CacheConfiguration> {
 
-  private static final URI NAMESPACE = URI.create("http://www.ehcache.org/v3/jsr107");
-  private static final URL XML_SCHEMA = Jsr107CacheConfigurationParser.class.getResource("/ehcache-107-ext.xsd");
   private static final String MANAGEMENT_ENABLED_ATTRIBUTE = "enable-management";
   private static final String STATISTICS_ENABLED_ATTRIBUTE = "enable-statistics";
 
   @Override
-  public Source getXmlSchema() throws IOException {
-    return new StreamSource(XML_SCHEMA.openStream());
-  }
-
-  @Override
-  public URI getNamespace() {
-    return NAMESPACE;
-  }
-
-  @Override
-  public ServiceConfiguration<Jsr107Service, ?> parseServiceConfiguration(Element fragment, ClassLoader classLoader) {
+  public Jsr107CacheConfiguration parse(Element fragment, ClassLoader classLoader) {
     String localName = fragment.getLocalName();
     if ("mbeans".equals(localName)) {
       ConfigurationElementState managementEnabled = ConfigurationElementState.UNSPECIFIED;
@@ -79,7 +60,7 @@ public class Jsr107CacheConfigurationParser implements CacheServiceConfiguration
   }
 
   @Override
-  public Element unparseServiceConfiguration(ServiceConfiguration<Jsr107Service, ?> serviceConfiguration) {
+  public Element unparse(Document target, Jsr107CacheConfiguration serviceConfiguration) {
     throw new XmlConfigurationException("XML translation of JSR-107 cache elements are not supported");
   }
 

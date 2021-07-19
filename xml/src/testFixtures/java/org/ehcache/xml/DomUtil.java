@@ -25,6 +25,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -32,43 +34,35 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 
+import static java.util.Objects.requireNonNull;
 import static org.ehcache.xml.ConfigurationParser.newSchema;
 
 public class DomUtil {
 
-  private static final URL CORE_SCHEMA_URL = XmlConfiguration.class.getResource("/ehcache-core.xsd");
+  private static final URL CORE_SCHEMA_URL = requireNonNull(XmlConfiguration.class.getResource("/ehcache-core.xsd"));
 
-  public static DocumentBuilder createAndGetDocumentBuilder(Collection<Source> schemaSources) throws SAXException, ParserConfigurationException {
+  private static DocumentBuilder createAndGetDocumentBuilder(Collection<Supplier<Source>> additionalSchema) throws SAXException, ParserConfigurationException, IOException {
+    List<Source> schemaSources = new ArrayList<>(additionalSchema.size() + 1);
+    schemaSources.add(new StreamSource(CORE_SCHEMA_URL.openStream()));
+    schemaSources.addAll(additionalSchema.stream().map(Supplier::get).collect(Collectors.toList()));
+
     DocumentBuilderFactory factory = createAndGetFactory(schemaSources);
     DocumentBuilder documentBuilder = factory.newDocumentBuilder();
     documentBuilder.setErrorHandler(new TransformationErrorHandler());
     return documentBuilder;
   }
 
-  public static DocumentBuilder createAndGetDocumentBuilder(Source schemaSource) throws SAXException, ParserConfigurationException, IOException {
-    List<Source> schemaSources = new ArrayList<>(2);
-    schemaSources.add(new StreamSource(CORE_SCHEMA_URL.openStream()));
-    schemaSources.add(schemaSource);
-    return createAndGetDocumentBuilder(schemaSources);
-  }
-
-  public static DocumentBuilder createAndGetDocumentBuilder() throws SAXException, ParserConfigurationException, IOException {
-    return createAndGetDocumentBuilder(new StreamSource(CORE_SCHEMA_URL.openStream()));
-  }
-
-  private static DocumentBuilderFactory createAndGetFactory(Collection<Source> schemaSources) throws SAXException {
+  private static DocumentBuilderFactory createAndGetFactory(List<Source> schemaSources) throws SAXException {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     factory.setNamespaceAware(true);
     factory.setIgnoringComments(true);
     factory.setIgnoringElementContentWhitespace(true);
-    factory.setSchema(newSchema(schemaSources.toArray(new Source[schemaSources.size()])));
+    factory.setSchema(newSchema(schemaSources.toArray(new Source[0])));
     return factory;
   }
 
-  public static Document createDocumentRoot(Source schemaSource) throws IOException, SAXException, ParserConfigurationException {
-    DocumentBuilder domBuilder = createAndGetDocumentBuilder(schemaSource);
-    Document doc = domBuilder.newDocument();
-    return doc;
+  public static Document createDocumentRoot(Collection<Supplier<Source>> schemaSource) throws IOException, SAXException, ParserConfigurationException {
+    return createAndGetDocumentBuilder(schemaSource).newDocument();
   }
 
   static class TransformationErrorHandler implements ErrorHandler {

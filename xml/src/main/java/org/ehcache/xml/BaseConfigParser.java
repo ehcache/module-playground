@@ -15,23 +15,18 @@
  */
 package org.ehcache.xml;
 
-import org.ehcache.xml.exceptions.XmlConfigurationException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
 
-import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
-import java.util.Objects;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Source;
+import static java.util.Objects.requireNonNull;
 
 /**
  * BaseConfigParser - Base class providing functionality for translating service configurations to corresponding xml
  * document.
  */
-public abstract class BaseConfigParser<T> {
+public abstract class BaseConfigParser<T> implements Parser<T> {
   private final Class<T> typeParameterClass;
 
   @SuppressWarnings("unchecked")
@@ -39,35 +34,17 @@ public abstract class BaseConfigParser<T> {
     typeParameterClass = (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
   }
 
-  public BaseConfigParser(Class<T> type) {
-    this.typeParameterClass = type;
-  }
-
   private T validateConfig(Object config) {
-    Objects.requireNonNull(config, "Configuration must not be null.");
     try {
-      return typeParameterClass.cast(config);
+      return typeParameterClass.cast(requireNonNull(config, "Configuration must not be null."));
     } catch (ClassCastException e) {
       throw new IllegalArgumentException("Invalid configuration parameter passed.", e);
     }
   }
 
-  private Document createDocument() {
-    try {
-      return DomUtil.createDocumentRoot(getXmlSchema());
-    } catch (SAXException | ParserConfigurationException | IOException e) {
-      throw new XmlConfigurationException(e);
-    }
+  public final Element unparse(Document document, T config) {
+    return safeUnparse(document, validateConfig(config));
   }
 
-  protected Element unparseConfig(Object config) {
-    T mainConfig = validateConfig(config);
-    Document doc = createDocument();
-    Element rootElement = createRootElement(doc, mainConfig);
-    return rootElement;
-  }
-
-  protected abstract Element createRootElement(Document doc, T config);
-
-  protected abstract Source getXmlSchema() throws IOException;
+  protected abstract Element safeUnparse(Document doc, T config);
 }
