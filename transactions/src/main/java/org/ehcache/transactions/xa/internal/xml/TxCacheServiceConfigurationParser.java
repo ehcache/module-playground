@@ -18,7 +18,6 @@ package org.ehcache.transactions.xa.internal.xml;
 
 import org.ehcache.xml.BaseConfigParser;
 import org.ehcache.xml.CacheServiceConfigurationParser;
-import org.ehcache.spi.service.ServiceConfiguration;
 import org.ehcache.transactions.xa.internal.XAStore;
 import org.ehcache.transactions.xa.configuration.XAStoreConfiguration;
 import org.ehcache.xml.JaxbParsers;
@@ -29,35 +28,30 @@ import org.w3c.dom.Element;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URL;
+import java.util.Map;
+import java.util.function.Supplier;
 
+import static java.util.Collections.singletonMap;
 import static org.ehcache.transactions.xa.internal.xml.TxCacheManagerServiceConfigurationParser.TRANSACTION_NAMESPACE_PREFIX;
 
 /**
  * @author Ludovic Orban
  */
 @Component
-public class TxCacheServiceConfigurationParser extends BaseConfigParser<XAStoreConfiguration> implements CacheServiceConfigurationParser<XAStore.Provider> {
+public class TxCacheServiceConfigurationParser extends BaseConfigParser<XAStoreConfiguration> implements CacheServiceConfigurationParser<XAStore.Provider, XAStoreConfiguration> {
 
   private static final URI NAMESPACE = URI.create("http://www.ehcache.org/v3/tx");
-  private static final URL XML_SCHEMA = TxCacheManagerServiceConfigurationParser.class.getResource("/ehcache-tx-ext.xsd");
   private static final String STORE_ELEMENT_NAME = "xa-store";
   private static final String UNIQUE_RESOURCE_NAME = "unique-XAResource-id";
 
   @Override
-  public Source getXmlSchema() throws IOException {
-    return new StreamSource(XML_SCHEMA.openStream());
+  public Map<URI, Supplier<Source>> getSchema() {
+    return singletonMap(NAMESPACE, () -> new StreamSource(getClass().getResourceAsStream("/ehcache-tx-ext.xsd")));
   }
 
   @Override
-  public URI getNamespace() {
-    return NAMESPACE;
-  }
-
-  @Override
-  public ServiceConfiguration<XAStore.Provider, ?> parseServiceConfiguration(Element fragment, ClassLoader classLoader) {
+  public XAStoreConfiguration parse(Element fragment, ClassLoader classLoader) {
     String localName = fragment.getLocalName();
     if ("xa-store".equals(localName)) {
       String uniqueXAResourceId = JaxbParsers.parsePropertyOrString(fragment.getAttribute("unique-XAResource-id"));
@@ -74,12 +68,7 @@ public class TxCacheServiceConfigurationParser extends BaseConfigParser<XAStoreC
   }
 
   @Override
-  public Element unparseServiceConfiguration(ServiceConfiguration<XAStore.Provider, ?> serviceConfiguration) {
-    return unparseConfig(serviceConfiguration);
-  }
-
-  @Override
-  protected Element createRootElement(Document doc, XAStoreConfiguration storeConfiguration) {
+  public Element safeUnparse(Document doc, XAStoreConfiguration storeConfiguration) {
     Element rootElement = doc.createElementNS(NAMESPACE.toString(), TRANSACTION_NAMESPACE_PREFIX  + STORE_ELEMENT_NAME);
     rootElement.setAttribute(UNIQUE_RESOURCE_NAME, storeConfiguration.getUniqueXAResourceId());
     return rootElement;
